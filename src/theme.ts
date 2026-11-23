@@ -18,3 +18,33 @@ export const DIFFICULTY: Record<
   3: { name: "Immortal", color: "#56CCF2", emoji: "🟦" },
   4: { name: "Radiant", color: "#BB6BD9", emoji: "🟪" },
 };
+
+export type CommsRank =
+  | "Iron"
+  | "Silver"
+  | "Plat"
+  | "Diamond"
+  | "Immortal"
+  | "Radiant";
+
+export const COMMS_RANK_ORDER: CommsRank[] = [
+  "Iron",
+  "Silver",
+  "Plat",
+  "Diamond",
+  "Immortal",
+  "Radiant",
+];
+
+export const COMMS_PUBLIC_RANK_ORDER = COMMS_RANK_ORDER.filter(
+  (rank): rank is Exclude<CommsRank, "Radiant"> => rank !== "Radiant",
+);
+
+export const COMMS_RANK: Record<CommsRank, { name: string; color: string }> = {
+  Iron: { name: "Iron", color: "#8B8178" },
+  Silver: { name: "Silver", color: "#C5CDD3" },
+  Plat: { name: "Plat", color: "#4EC8C2" },
+  Diamond: { name: "Diamond", color: "#5B8DEE" },
+  Immortal: { name: "Immortal", color: "#FF4655" },
+  Radiant: { name: "Radiant", color: "#F3D37A" },
+};

@@ -44,6 +44,10 @@ function submitGuess(state: ReturnType<typeof start>, words: string[]) {
   return gameReducer(selectWords(state, words), { type: "SUBMIT" });
 }
 
+function submitAndCommit(state: ReturnType<typeof start>, words: string[]) {
+  return gameReducer(submitGuess(state, words), { type: "COMMIT_SOLVE" });
+}
+
 describe("SELECT / DESELECT", () => {
   it("selects a tile and deselects it", () => {
     let state = start();
@@ -73,12 +77,18 @@ describe("SELECT / DESELECT", () => {
 
 describe("SUBMIT", () => {
   it("accepts a correct guess and moves the group into solved", () => {
-    const state = submitGuess(start(), ["Ascent", "Bind", "Lotus", "Pearl"]);
+    const staged = submitGuess(start(), ["Ascent", "Bind", "Lotus", "Pearl"]);
+    expect(staged.feedback).toBe("correct");
+    expect(staged.pendingSolve).toBe(0);
+    expect(staged.selected).toEqual(["Ascent", "Bind", "Lotus", "Pearl"]);
+    expect(staged.board).toContain("Ascent");
+    expect(staged.solved).toEqual([]);
 
-    expect(state.feedback).toBe("correct");
+    const state = gameReducer(staged, { type: "COMMIT_SOLVE" });
     expect(state.solved).toEqual([0]);
     expect(state.mistakes).toBe(0);
     expect(state.selected).toEqual([]);
+    expect(state.pendingSolve).toBeNull();
     expect(state.board).not.toContain("Ascent");
     expect(state.board).toHaveLength(12);
     expect(state.status).toBe("playing");
@@ -123,10 +133,10 @@ describe("SUBMIT", () => {
 
   it("wins when all four groups are found", () => {
     let state = start();
-    state = submitGuess(state, ["Ascent", "Bind", "Lotus", "Pearl"]);
-    state = submitGuess(state, ["Acend", "LOUD", "Evil Geniuses", "EDward Gaming"]);
-    state = submitGuess(state, ["Brimstone", "Viper", "Astra", "Harbor"]);
-    state = submitGuess(state, ["Omen", "Raze", "Sage", "Iso"]);
+    state = submitAndCommit(state, ["Ascent", "Bind", "Lotus", "Pearl"]);
+    state = submitAndCommit(state, ["Acend", "LOUD", "Evil Geniuses", "EDward Gaming"]);
+    state = submitAndCommit(state, ["Brimstone", "Viper", "Astra", "Harbor"]);
+    state = submitAndCommit(state, ["Omen", "Raze", "Sage", "Iso"]);
 
     expect(state.status).toBe("won");
     expect(state.solved).toEqual([0, 1, 2, 3]);
@@ -156,7 +166,7 @@ describe("SUBMIT", () => {
 
 describe("SHUFFLE and RESTORE", () => {
   it("shuffles only the unsolved board tiles", () => {
-    let state = submitGuess(start(), ["Ascent", "Bind", "Lotus", "Pearl"]);
+    let state = submitAndCommit(start(), ["Ascent", "Bind", "Lotus", "Pearl"]);
     const before = [...state.board];
 
     // Force a different order by shuffling many times if needed
@@ -175,7 +185,7 @@ describe("SHUFFLE and RESTORE", () => {
   });
 
   it("restores mid-game progress exactly", () => {
-    const mid = submitGuess(start(), ["Ascent", "Bind", "Lotus", "Pearl"]);
+    const mid = submitAndCommit(start(), ["Ascent", "Bind", "Lotus", "Pearl"]);
     const progress = {
       guesses: mid.guesses,
       solved: mid.solved,
@@ -192,5 +202,15 @@ describe("SHUFFLE and RESTORE", () => {
     expect(state.board).toEqual(board);
     expect(state.selected).toEqual([]);
     expect(state.status).toBe("playing");
+  });
+
+  it("resets a finished puzzle to a fresh board", () => {
+    let state = submitGuess(start(), ["Ascent", "Bind", "Lotus", "Pearl"]);
+    state = gameReducer(state, { type: "RESET" });
+    expect(state.status).toBe("playing");
+    expect(state.solved).toEqual([]);
+    expect(state.guesses).toEqual([]);
+    expect(state.mistakes).toBe(0);
+    expect(state.board).toHaveLength(16);
   });
 });

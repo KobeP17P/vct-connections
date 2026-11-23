@@ -31,6 +31,7 @@ export function createInitialState(
     board,
     selected: [],
     solved: [],
+    pendingSolve: null,
     guesses: [],
     mistakes: 0,
     status: "playing",
@@ -52,6 +53,7 @@ export function restoreState(
     board: nextBoard,
     selected: [],
     solved: [...progress.solved],
+    pendingSolve: null,
     guesses: progress.guesses.map((g) => [...g]),
     mistakes: progress.mistakes,
     status: progress.status,
@@ -59,7 +61,19 @@ export function restoreState(
   };
 }
 
-function applyCorrectGuess(state: GameState, groupIndex: number): GameState {
+function stageCorrectGuess(state: GameState, groupIndex: number): GameState {
+  return {
+    ...state,
+    pendingSolve: groupIndex,
+    status: "playing",
+    feedback: "correct",
+  };
+}
+
+export function commitPendingSolve(state: GameState): GameState {
+  if (state.pendingSolve === null) return state;
+
+  const groupIndex = state.pendingSolve;
   const solved = [...state.solved, groupIndex];
   const groupWords = new Set(state.puzzle.groups[groupIndex]!.words);
   const board = state.board.filter((word) => !groupWords.has(word));
@@ -70,8 +84,9 @@ function applyCorrectGuess(state: GameState, groupIndex: number): GameState {
     board,
     selected: [],
     solved,
+    pendingSolve: null,
     status,
-    feedback: "correct",
+    feedback: null,
   };
 }
 
@@ -90,6 +105,7 @@ function applyIncorrectGuess(state: GameState, oneAway: boolean): GameState {
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case "SELECT": {
+      if (state.pendingSolve !== null) return state;
       if (state.status !== "playing") return state;
       if (state.selected.includes(action.word)) return state;
       if (!state.board.includes(action.word)) return state;
@@ -103,6 +119,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case "DESELECT": {
+      if (state.pendingSolve !== null) return state;
       if (state.status !== "playing") return state;
       if (!state.selected.includes(action.word)) return state;
 
@@ -114,6 +131,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case "DESELECT_ALL": {
+      if (state.pendingSolve !== null) return state;
       if (state.status !== "playing") return state;
       if (state.selected.length === 0) return state;
 
@@ -125,6 +143,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case "SHUFFLE": {
+      if (state.pendingSolve !== null) return state;
       if (state.status !== "playing") return state;
 
       return {
@@ -135,6 +154,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case "SUBMIT": {
+      if (state.pendingSolve !== null) return state;
       if (state.status !== "playing") return state;
       if (state.selected.length !== 4) return state;
 
@@ -151,15 +171,23 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const groupIndex = findGroupIndex(state.puzzle, guess);
 
       if (groupIndex !== -1) {
-        return applyCorrectGuess({ ...state, guesses }, groupIndex);
+        return stageCorrectGuess({ ...state, guesses }, groupIndex);
       }
 
       const oneAway = isOneAway(guess, state.puzzle.groups);
       return applyIncorrectGuess({ ...state, guesses }, oneAway);
     }
 
+    case "COMMIT_SOLVE": {
+      return commitPendingSolve(state);
+    }
+
     case "RESTORE": {
       return restoreState(state.puzzle, action.progress, action.board);
+    }
+
+    case "RESET": {
+      return createInitialState(state.puzzle);
     }
 
     case "CLEAR_FEEDBACK": {

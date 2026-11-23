@@ -1,4 +1,5 @@
 import { DIFFICULTY } from "../theme";
+import { formatDisplayDate } from "./daily";
 import type { Difficulty, Puzzle } from "./types";
 
 function wordDifficulty(puzzle: Puzzle, word: string): Difficulty {
@@ -17,7 +18,7 @@ export function buildShareText(
   guesses: string[][],
   options?: { title?: string },
 ): string {
-  const title = options?.title ?? `COMMS #${puzzle.id}`;
+  const title = options?.title ?? `VCT COMMS ${formatDisplayDate(puzzle.date)}`;
   const rows = guesses.map((guess) =>
     guess.map((word) => DIFFICULTY[wordDifficulty(puzzle, word)].emoji).join(""),
   );

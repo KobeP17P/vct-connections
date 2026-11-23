@@ -40,6 +40,7 @@ export interface SavedState {
     currentStreak: number;
     maxStreak: number;
     mistakeDistribution: [number, number, number, number, number];
+    rankDistribution: [number, number, number, number, number, number];
   };
 }
 
@@ -50,6 +51,8 @@ export interface GameState {
   selected: string[];
   /** Group indices solved, in the order they were found. */
   solved: number[];
+  /** Correct group waiting for the tile animation before it collapses. */
+  pendingSolve: number | null;
   guesses: string[][];
   mistakes: number;
   status: GameStatus;
@@ -62,5 +65,7 @@ export type GameAction =
   | { type: "DESELECT_ALL" }
   | { type: "SHUFFLE" }
   | { type: "SUBMIT" }
+  | { type: "COMMIT_SOLVE" }
   | { type: "RESTORE"; progress: PuzzleProgress; board?: string[] }
+  | { type: "RESET" }
   | { type: "CLEAR_FEEDBACK" };

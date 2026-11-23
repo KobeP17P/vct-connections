@@ -41,7 +41,7 @@ describe("buildShareText", () => {
 
     expect(text).toBe(
       [
-        "COMMS #12",
+        "VCT COMMS November 20, 2026",
         "🟨🟨🟨🟨",
         "🟦🟪🟦🟦",
         "🟦🟦🟦🟦",

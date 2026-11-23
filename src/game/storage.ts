@@ -1,3 +1,11 @@
+import {
+  commsRankFromProgress,
+  commsRankScore,
+  emptyRankDistribution,
+  rankDistributionFromMistakes,
+  type RankDistribution,
+} from "./ranks";
+import { commitPendingSolve } from "./reducer";
 import type { GameState, PuzzleProgress, SavedState } from "./types";
 
 export const STORAGE_KEY = "comms:v1";
@@ -11,6 +19,7 @@ export function emptySavedState(): SavedState {
       currentStreak: 0,
       maxStreak: 0,
       mistakeDistribution: [0, 0, 0, 0, 0],
+      rankDistribution: emptyRankDistribution(),
     },
   };
 }
@@ -38,37 +47,56 @@ export function loadSavedState(): SavedState {
     if (!raw) return emptySavedState();
     const parsed: unknown = JSON.parse(raw);
     if (!isSavedState(parsed)) return emptySavedState();
-    return parsed;
+    return {
+      ...parsed,
+      stats: {
+        ...parsed.stats,
+        rankDistribution: normalizeRankDistribution(parsed.stats),
+      },
+    };
   } catch {
     return emptySavedState();
   }
 }
 
 export function writeSavedState(state: SavedState): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Private mode / quota — keep the in-memory result without crashing.
+  }
 }
 
 export function progressFromGame(state: GameState): PuzzleProgress {
+  const snapshot =
+    state.pendingSolve !== null ? commitPendingSolve(state) : state;
   return {
-    guesses: state.guesses.map((g) => [...g]),
-    solved: [...state.solved],
-    mistakes: state.mistakes,
-    status: state.status,
-    board: [...state.board],
+    guesses: snapshot.guesses.map((g) => [...g]),
+    solved: [...snapshot.solved],
+    mistakes: snapshot.mistakes,
+    status: snapshot.status,
+    board: [...snapshot.board],
   };
 }
 
 /**
  * Persist mid-game / end-game progress. Updates lifetime stats the first time
- * a puzzle finishes (won or lost).
+ * a puzzle finishes (won or lost), unless `updateStats` is false (custom games).
  */
-export function saveGameProgress(state: GameState): SavedState {
+export function saveGameProgress(
+  state: GameState,
+  options?: { updateStats?: boolean },
+): SavedState {
+  const updateStats = options?.updateStats ?? true;
   const saved = loadSavedState();
   const prev = saved.byPuzzle[state.puzzle.id];
+  const snapshot =
+    state.pendingSolve !== null ? commitPendingSolve(state) : state;
   const progress = progressFromGame(state);
 
   const finishing =
-    (state.status === "won" || state.status === "lost") &&
+    updateStats &&
+    (snapshot.status === "won" || snapshot.status === "lost") &&
     (!prev || prev.status === "playing");
 
   const next: SavedState = {
@@ -77,7 +105,7 @@ export function saveGameProgress(state: GameState): SavedState {
       ...saved.byPuzzle,
       [state.puzzle.id]: progress,
     },
-    stats: finishing ? applyFinishStats(saved.stats, state) : saved.stats,
+    stats: finishing ? applyFinishStats(saved.stats, snapshot) : saved.stats,
   };
 
   writeSavedState(next);
@@ -102,7 +130,40 @@ function applyFinishStats(
     mistakeDistribution[4] = (mistakeDistribution[4] ?? 0) + 1;
   }
 
-  return { played, won, currentStreak, maxStreak, mistakeDistribution };
+  const rankDistribution = [
+    ...normalizeRankDistribution(stats),
+  ] as RankDistribution;
+  if (state.status === "won" || state.status === "lost") {
+    const rank = commsRankFromProgress(state.puzzle, state);
+    const index = commsRankScore(rank);
+    rankDistribution[index] = (rankDistribution[index] ?? 0) + 1;
+  }
+
+  return {
+    played,
+    won,
+    currentStreak,
+    maxStreak,
+    mistakeDistribution,
+    rankDistribution,
+  };
+}
+
+function normalizeRankDistribution(
+  stats: SavedState["stats"],
+): RankDistribution {
+  const current = stats.rankDistribution;
+  if (Array.isArray(current) && current.length === 6) {
+    return [
+      current[0] ?? 0,
+      current[1] ?? 0,
+      current[2] ?? 0,
+      current[3] ?? 0,
+      current[4] ?? 0,
+      current[5] ?? 0,
+    ];
+  }
+  return rankDistributionFromMistakes(stats.mistakeDistribution);
 }
 
 export function getPuzzleProgress(
@@ -111,4 +172,13 @@ export function getPuzzleProgress(
 ): PuzzleProgress | undefined {
   const progress = saved.byPuzzle[puzzleId];
   return isPuzzleProgress(progress) ? progress : undefined;
+}
+
+/** Drop one puzzle's board so it can be played again. Career stats stay. */
+export function clearPuzzleProgress(puzzleId: number): SavedState {
+  const saved = loadSavedState();
+  const { [puzzleId]: _removed, ...byPuzzle } = saved.byPuzzle;
+  const next: SavedState = { ...saved, byPuzzle };
+  writeSavedState(next);
+  return next;
 }

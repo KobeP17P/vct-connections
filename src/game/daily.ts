@@ -8,6 +8,31 @@ export function formatLocalDate(date: Date = new Date()): string {
   return `${y}-${m}-${d}`;
 }
 
+/** Display an ISO calendar date as "November 21, 2026". */
+export function formatDisplayDate(iso: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match) return iso;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+/** Puzzle dated for today in the player's local timezone, if one exists. */
+export function getTodayPuzzle(
+  puzzles: Puzzle[],
+  today: Date = new Date(),
+): Puzzle | undefined {
+  const todayKey = formatLocalDate(today);
+  return puzzles.find((puzzle) => puzzle.date === todayKey);
+}
+
 /**
  * Pick the puzzle whose `date` matches today in the player's local timezone.
  * If none match, fall back to the most recent past puzzle.
@@ -20,10 +45,10 @@ export function getDailyPuzzle(
     throw new Error("No puzzles available");
   }
 
-  const todayKey = formatLocalDate(today);
-  const exact = puzzles.find((p) => p.date === todayKey);
+  const exact = getTodayPuzzle(puzzles, today);
   if (exact) return exact;
 
+  const todayKey = formatLocalDate(today);
   const past = puzzles
     .filter((p) => p.date <= todayKey)
     .sort((a, b) => b.date.localeCompare(a.date));

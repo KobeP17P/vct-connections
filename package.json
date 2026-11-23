@@ -12,6 +12,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@clerk/react": "^6.19.4",
+    "@supabase/supabase-js": "^2.119.2",
     "framer-motion": "^14.14.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

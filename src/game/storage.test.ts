@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createInitialState, gameReducer } from "./reducer";
 import {
+  clearPuzzleProgress,
   emptySavedState,
   loadSavedState,
   progressFromGame,
@@ -67,6 +68,7 @@ describe("storage", () => {
       state,
     );
     state = gameReducer(state, { type: "SUBMIT" });
+    state = gameReducer(state, { type: "COMMIT_SOLVE" });
 
     saveGameProgress(state);
     const saved = loadSavedState();
@@ -92,6 +94,7 @@ describe("storage", () => {
         gameReducer(state, { type: "DESELECT_ALL" }),
       );
       state = gameReducer(state, { type: "SUBMIT" });
+      state = gameReducer(state, { type: "COMMIT_SOLVE" });
     }
 
     expect(state.status).toBe("won");
@@ -99,9 +102,55 @@ describe("storage", () => {
     expect(saved.stats.played).toBe(1);
     expect(saved.stats.won).toBe(1);
     expect(saved.stats.mistakeDistribution[0]).toBe(1);
+    expect(saved.stats.rankDistribution[4]).toBe(1);
 
     saved = saveGameProgress(state);
     expect(saved.stats.played).toBe(1);
+  });
+
+  it("can persist a guest game without touching career stats", () => {
+    let state = createInitialState(puzzle, { shuffle: false });
+    for (const words of [
+      ["Ascent", "Bind", "Lotus", "Pearl"],
+      ["Acend", "LOUD", "Evil Geniuses", "EDward Gaming"],
+      ["Brimstone", "Viper", "Astra", "Harbor"],
+      ["Omen", "Raze", "Sage", "Iso"],
+    ]) {
+      state = words.reduce(
+        (s, word) => gameReducer(s, { type: "SELECT", word }),
+        gameReducer(state, { type: "DESELECT_ALL" }),
+      );
+      state = gameReducer(state, { type: "SUBMIT" });
+      state = gameReducer(state, { type: "COMMIT_SOLVE" });
+    }
+
+    const saved = saveGameProgress(state, { updateStats: false });
+    expect(saved.byPuzzle[1]?.status).toBe("won");
+    expect(saved.stats.played).toBe(0);
+    expect(saved.stats.won).toBe(0);
+  });
+
+  it("clears a puzzle without wiping career stats", () => {
+    let state = createInitialState(puzzle, { shuffle: false });
+    for (const words of [
+      ["Ascent", "Bind", "Lotus", "Pearl"],
+      ["Acend", "LOUD", "Evil Geniuses", "EDward Gaming"],
+      ["Brimstone", "Viper", "Astra", "Harbor"],
+      ["Omen", "Raze", "Sage", "Iso"],
+    ]) {
+      state = words.reduce(
+        (s, word) => gameReducer(s, { type: "SELECT", word }),
+        gameReducer(state, { type: "DESELECT_ALL" }),
+      );
+      state = gameReducer(state, { type: "SUBMIT" });
+      state = gameReducer(state, { type: "COMMIT_SOLVE" });
+    }
+
+    saveGameProgress(state);
+    const saved = clearPuzzleProgress(1);
+    expect(saved.byPuzzle[1]).toBeUndefined();
+    expect(saved.stats.played).toBe(1);
+    expect(saved.stats.won).toBe(1);
   });
 
   it("round-trips progressFromGame fields", () => {

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   formatCountdown,
+  formatDisplayDate,
   formatLocalDate,
   getDailyPuzzle,
+  getTodayPuzzle,
   msUntilNextLocalMidnight,
 } from "./daily";
 import type { Puzzle } from "./types";
@@ -27,6 +29,8 @@ describe("getDailyPuzzle", () => {
 
   it("returns the puzzle matching today's local date", () => {
     expect(getDailyPuzzle(puzzles, new Date(2026, 10, 20)).id).toBe(2);
+    expect(getTodayPuzzle(puzzles, new Date(2026, 10, 20))?.id).toBe(2);
+    expect(getTodayPuzzle(puzzles, new Date(2026, 10, 21))).toBeUndefined();
   });
 
   it("falls back to the most recent past puzzle", () => {
@@ -41,6 +45,11 @@ describe("getDailyPuzzle", () => {
 describe("countdown helpers", () => {
   it("formats local dates as YYYY-MM-DD", () => {
     expect(formatLocalDate(new Date(2026, 0, 5))).toBe("2026-01-05");
+  });
+
+  it("formats ISO dates in words", () => {
+    expect(formatDisplayDate("2026-11-21")).toBe("November 21, 2026");
+    expect(formatDisplayDate("2026-01-05")).toBe("January 5, 2026");
   });
 
   it("formats countdown as HH:MM:SS", () => {

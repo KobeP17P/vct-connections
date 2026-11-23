@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { DIFFICULTY } from "../theme";
+import { COMMS_RANK, COMMS_PUBLIC_RANK_ORDER, DIFFICULTY } from "../theme";
 
 export const HOW_TO_PLAY_KEY = "comms:howto:seen";
 
@@ -12,8 +12,16 @@ const TIERS = [
   { difficulty: 1 as const, hint: "Straightforward" },
   { difficulty: 2 as const, hint: "A bit trickier" },
   { difficulty: 3 as const, hint: "Challenging" },
-  { difficulty: 4 as const, hint: "Wordplay / twist" },
+  { difficulty: 4 as const, hint: "Elite Ball Knowledge" },
 ];
+
+const RANK_HINTS: Record<(typeof COMMS_PUBLIC_RANK_ORDER)[number], string> = {
+  Immortal: "No mistakes — all correct",
+  Diamond: "1 mistake",
+  Plat: "2 mistakes",
+  Silver: "3 mistakes",
+  Iron: "Failed the daily",
+};
 
 export function HowToPlay({ open, onClose }: HowToPlayProps) {
   const reducedMotion = useReducedMotion();
@@ -66,6 +74,34 @@ export function HowToPlay({ open, onClose }: HowToPlayProps) {
               <li>• You get four mistakes.</li>
               <li>• &quot;One away...&quot; means three tiles belong together.</li>
               <li>• Repeating an exact guess does not cost a mistake.</li>
+              <li>• Finish a daily to earn a rank from Iron to Immortal.</li>
+              <li>• Highest ranks uses your average rank after 5 official dailies.</li>
+              <li>• Progress is saved in this browser even if you do not sign in.</li>
+            </ul>
+
+            <p className="mt-5 font-body text-xs font-semibold uppercase tracking-wide text-comms-muted">
+              Ranks
+            </p>
+            <ul className="mt-2 space-y-2">
+              {[...COMMS_PUBLIC_RANK_ORDER].reverse().map((rank) => {
+                const style = COMMS_RANK[rank];
+                return (
+                  <li key={rank} className="flex items-center gap-3">
+                    <span
+                      className="inline-block h-4 w-8 rounded-sm"
+                      style={{ backgroundColor: style.color }}
+                      aria-hidden="true"
+                    />
+                    <span className="font-body text-sm text-comms-text">
+                      <span className="font-semibold">{style.name}</span>
+                      <span className="text-comms-muted">
+                        {" "}
+                        — {RANK_HINTS[rank]}
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
 
             <p className="mt-5 font-body text-xs font-semibold uppercase tracking-wide text-comms-muted">
